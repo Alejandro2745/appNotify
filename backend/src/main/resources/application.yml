@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+app:
+  exchanges:
+    dm: dm.exchange          # direct
+    notify: notify.exchange  # topic
+    ann: announcements.exchange  # fanout
+  cors:
+    allowedOrigin: http://localhost:5173
