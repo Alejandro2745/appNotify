@@ -1,0 +1,49 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+# --- SO / IDE ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# --- ROOT (si usas npm en la raíz para concurrently) ---
+node_modules/
+
+# --- BACKEND (Spring Boot / Maven) ---
+backend/target/
+backend/.classpath
+backend/.project
+backend/.settings/
+backend/.factorypath
+backend/logs/
+backend/*.log
+
+# Config sensibles locales
+backend/src/main/resources/application-local.yml
+backend/src/main/resources/application-local.properties
+backend/*.env
+
+# --- FRONTEND (Vite/React) ---
+frontend/node_modules/
+frontend/dist/
+frontend/.cache/
+frontend/.vite/
+
+# Lockfiles: ¡SÍ versionarlos! (consistencia de deps)
+# frontend/package-lock.json
+# frontend/yarn.lock
+# frontend/pnpm-lock.yaml
+
+# Variables de entorno (mantén un .env.example)
+frontend/.env
+frontend/.env.*.local
+
+# Reportes / pruebas
+frontend/coverage/
+frontend/*.log
+
+# --- Docker / Compose (opcional) ---
+docker-data/
+*.pid
