@@ -1,131 +1,137 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react';
 
 const API_BASE = 'http://localhost:8080'
 
-export default function App(){
-  const [userId, setUserId] = useState('alice')
+function useSSE(userId){
+  const [msgs, setMsgs] = useState([])
   const [connected, setConnected] = useState(false)
-  const [messages, setMessages] = useState([])
   const esRef = useRef(null)
-
-  useEffect(() => {
-    return () => { if (esRef.current) esRef.current.close() }
-  }, [])
 
   const connect = () => {
     if (connected) return
     const es = new EventSource(`${API_BASE}/api2/stream/${encodeURIComponent(userId)}`)
     es.onmessage = (e) => {
-      try { setMessages(m => [{ ts: Date.now(), body: JSON.parse(e.data) }, ...m]) }
-      catch { setMessages(m => [{ ts: Date.now(), body: e.data }, ...m]) }
+      let data = e.data
+      try { data = JSON.parse(e.data) } catch {}
+      setMsgs(m => [{ ts: Date.now(), body: data }, ...m])
+
+      // Toast simple y discreto
+      const el = document.createElement('div')
+      el.textContent = (typeof data === 'string') ? data : (data.text || data.payload || data.type)
+      el.style.cssText = 'position:fixed;right:16px;bottom:16px;background:#111;color:#fff;padding:10px 14px;border-radius:8px;opacity:.95;z-index:9999'
+      document.body.appendChild(el); setTimeout(()=>el.remove(), 2500)
     }
     es.onerror = () => { es.close(); setConnected(false) }
     esRef.current = es
     setConnected(true)
   }
 
-  const sendDM = async (to, text) => {
-    await fetch(`${API_BASE}/api/dm`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:userId, to, text }) })
-  }
+  const disconnect = () => { if (esRef.current){ esRef.current.close(); setConnected(false) } }
+  useEffect(()=>()=>disconnect(),[])
+  return { msgs, connected, connect, disconnect }
+}
 
-  const setPrefs = async (topicsCsv) => {
-    const topics = topicsCsv.split(',').map(s => s.trim()).filter(Boolean)
-    await fetch(`${API_BASE}/api/prefs/${encodeURIComponent(userId)}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ topics }) })
-  }
+function Panel({ defaultUser }){
+  const [userId, setUserId] = useState(defaultUser)
+  const { msgs, connected, connect, disconnect } = useSSE(userId)
+  const [to, setTo] = useState('bob')
+  const [dmText, setDmText] = useState('hola!')
+  const [topics, setTopics] = useState('notify.tech.ai, notify.sports.football')
+  const [topicKey, setTopicKey] = useState('notify.tech.ai')
+  const [topicPayload, setTopicPayload] = useState('Novedades IA')
+  const [annText, setAnnText] = useState('Mantenimiento hoy 8pm')
 
-  const publishTopic = async (topic, payload) => {
-    await fetch(`${API_BASE}/api/notify`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ topic, payload }) })
+  const setPrefs = async () => {
+    const list = topics.split(',').map(s=>s.trim()).filter(Boolean)
+    await fetch(`${API_BASE}/api/prefs/${encodeURIComponent(userId)}`,{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({topics:list})
+    })
   }
-
-  const broadcast = async (text) => {
-    await fetch(`${API_BASE}/api/announcements`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text }) })
+  const sendDM = async () => {
+    await fetch(`${API_BASE}/api/dm`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({from:userId, to, text:dmText})
+    })
+  }
+  const publishTopic = async () => {
+    await fetch(`${API_BASE}/api/notify`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({topic:topicKey, payload:topicPayload})
+    })
+  }
+  const broadcast = async () => {
+    await fetch(`${API_BASE}/api/announcements`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text:annText})
+    })
   }
 
   return (
-    <div className="min-h-screen p-6" style={{ fontFamily:'Inter, system-ui, Arial' }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700 }}>Social Notifications – Demo</h1>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:16 }}>
-        <section style={{ padding:12, border:'1px solid #ddd', borderRadius:12 }}>
-          <h2>1) Conexión</h2>
-          <label>Usuario: <input value={userId} onChange={e=>setUserId(e.target.value)} /></label>
-          <button onClick={connect} style={{ marginLeft:8 }} disabled={connected}>Conectar stream</button>
-          <p style={{ color: connected? 'green':'#555' }}>{connected? 'Conectado':'Desconectado'}</p>
-          <small>Se crean/bindean colas: <code>user.{userId}.queue</code> (direct) y <code>user.{userId}.prefs.queue</code> (topic)</small>
-        </section>
+    <div style={{border:'1px solid #e5e7eb', borderRadius:12, padding:12}}>
+      <div style={{display:'flex', alignItems:'center', gap:8}}>
+        <h2 style={{margin:0}}>Usuario</h2>
+        <input value={userId} onChange={e=>setUserId(e.target.value)} style={{flex:1}}/>
+        {!connected ? <button onClick={connect}>Conectar</button> : <button onClick={disconnect}>Desconectar</button>}
+      </div>
+      <small>Este panel simula una sesión de usuario final.</small>
 
-        <section style={{ padding:12, border:'1px solid #ddd', borderRadius:12 }}>
-          <h2>2) DM (direct exchange)</h2>
-          <DmForm onSend={sendDM} userId={userId} />
-        </section>
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:12}}>
+        <div>
+          <h3 style={{margin:'8px 0'}}>Mensaje directo</h3>
+          <div><label>Para: <input value={to} onChange={e=>setTo(e.target.value)} /></label></div>
+          <div><label>Texto: <input value={dmText} onChange={e=>setDmText(e.target.value)} /></label></div>
+          <button onClick={sendDM}>Enviar</button>
+        </div>
 
-        <section style={{ padding:12, border:'1px solid #ddd', borderRadius:12 }}>
-          <h2>3) Preferencias (topic exchange)</h2>
-          <PrefsForm onSet={setPrefs} />
-          <PublishForm onPublish={publishTopic} />
-          <small>Routing keys sugeridas: <code>notify.tech.ai</code>, <code>notify.sports.football</code></small>
-        </section>
-
-        <section style={{ padding:12, border:'1px solid #ddd', borderRadius:12 }}>
-          <h2>4) Anuncios (fanout)</h2>
-          <AnnForm onBroadcast={broadcast} />
-        </section>
+        <div>
+          <h3 style={{margin:'8px 0'}}>Preferencias de temas</h3>
+          <label>Temas (CSV): <input value={topics} onChange={e=>setTopics(e.target.value)} style={{width:'100%'}} /></label>
+          <button onClick={setPrefs} style={{marginTop:8}}>Guardar</button>
+          <div style={{marginTop:8}}>
+            <label>Publicar a: <input value={topicKey} onChange={e=>setTopicKey(e.target.value)} /></label>
+            <label style={{marginLeft:8}}>Payload: <input value={topicPayload} onChange={e=>setTopicPayload(e.target.value)} /></label>
+            <button onClick={publishTopic} style={{marginLeft:8}}>Publicar</button>
+          </div>
+        </div>
       </div>
 
-      <section style={{ marginTop:16, padding:12, border:'1px solid #ddd', borderRadius:12 }}>
-        <h2>Stream</h2>
-        <ul>
-          {messages.map((m, i) => (
-            <li key={i} style={{ padding:8, borderBottom:'1px solid #eee' }}>
-              <code>{typeof m.body === 'string' ? m.body : JSON.stringify(m.body)}</code>
-            </li>
-          ))}
+      <div style={{marginTop:12}}>
+        <h3 style={{margin:'8px 0'}}>Anuncios</h3>
+        <input value={annText} onChange={e=>setAnnText(e.target.value)} style={{width:'100%'}} />
+        <button onClick={broadcast} style={{marginTop:8}}>Enviar anuncio</button>
+      </div>
+
+      <div style={{marginTop:12}}>
+        <h3 style={{margin:'8px 0'}}>Bandeja de entrada (recientes)</h3>
+        <ul style={{listStyle:'none', padding:0, margin:0, maxHeight:260, overflowY:'auto'}}>
+          {msgs.map((m,i)=>{
+            const b = m.body
+            const label = typeof b === 'string' ? 'mensaje' : (b.type || 'evento')
+            const text = typeof b === 'string' ? b : (b.text || b.payload || JSON.stringify(b))
+            return (
+              <li key={i} style={{padding:8, borderBottom:'1px solid #eee'}}>
+                <span style={{fontSize:12, padding:'2px 6px', borderRadius:12, background:'#eef2ff', marginRight:8}}>{label}</span>
+                <span>{text}</span>
+              </li>
+            )
+          })}
         </ul>
-      </section>
+      </div>
+
+      <p style={{color: connected? 'green':'#555'}}>Estado: {connected? 'Conectado' : 'Desconectado'}</p>
     </div>
   )
 }
 
-function DmForm({ onSend, userId }){
-  const [to, setTo] = useState('bob')
-  const [text, setText] = useState('hola!')
+export default function App(){
   return (
-    <div>
-      <div><label>Para: <input value={to} onChange={e=>setTo(e.target.value)} /></label></div>
-      <div><label>Texto: <input value={text} onChange={e=>setText(e.target.value)} /></label></div>
-      <button onClick={()=>onSend(to, text)}>Enviar DM → direct(user.{to})</button>
-      <p><small>Desde: <code>{userId}</code></small></p>
-    </div>
-  )
-}
-
-function PrefsForm({ onSet }){
-  const [topics, setTopics] = useState('notify.tech.ai, notify.sports.football')
-  return (
-    <div>
-      <label>Temas (CSV): <input value={topics} onChange={e=>setTopics(e.target.value)} style={{ width:'100%' }} /></label>
-      <button onClick={()=>onSet(topics)} style={{ marginTop:8 }}>Guardar bindings</button>
-    </div>
-  )
-}
-
-function PublishForm({ onPublish }){
-  const [topic, setTopic] = useState('notify.tech.ai')
-  const [payload, setPayload] = useState('Novedades IA')
-  return (
-    <div style={{ marginTop:8 }}>
-      <div><label>Routing key: <input value={topic} onChange={e=>setTopic(e.target.value)} /></label></div>
-      <div><label>Payload: <input value={payload} onChange={e=>setPayload(e.target.value)} /></label></div>
-      <button onClick={()=>onPublish(topic, payload)} style={{ marginTop:8 }}>Publicar</button>
-    </div>
-  )
-}
-
-function AnnForm({ onBroadcast }){
-  const [text, setText] = useState('Mantenimiento hoy 8pm')
-  return (
-    <div>
-      <label>Mensaje: <input value={text} onChange={e=>setText(e.target.value)} style={{ width:'100%' }} /></label>
-      <button onClick={()=>onBroadcast(text)} style={{ marginTop:8 }}>Broadcast</button>
+    <div className="min-h-screen p-6" style={{ fontFamily:'Inter, system-ui, Arial' }}>
+      <h1 style={{ fontSize: 28, fontWeight: 700 }}>Notificaciones – Demo usuario final</h1>
+      <p>Abre dos sesiones aquí mismo para visualizar cómo llegan DMs, suscripciones a temas y anuncios globales.</p>
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:16}}>
+        <Panel defaultUser="alice" />
+        <Panel defaultUser="bob" />
+      </div>
     </div>
   )
 }
