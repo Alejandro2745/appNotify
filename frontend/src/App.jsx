@@ -31,7 +31,7 @@ function useSSE(userId){
   return { msgs, connected, connect, disconnect }
 }
 
-function Panel({ defaultUser }){
+function Panel({ defaultUser, showPrefs = true, prefsMode = 'csv', canAnnounce = true, subtitle = 'Este panel simula una sesión de usuario final.' }){
   const [userId, setUserId] = useState(defaultUser)
   const { msgs, connected, connect, disconnect } = useSSE(userId)
   const [to, setTo] = useState('bob')
@@ -40,6 +40,9 @@ function Panel({ defaultUser }){
   const [topicKey, setTopicKey] = useState('notify.tech.ai')
   const [topicPayload, setTopicPayload] = useState('Novedades IA')
   const [annText, setAnnText] = useState('Mantenimiento hoy 8pm')
+  const [availableTopics, setAvailableTopics] = useState(['notify.tech.ai','notify.sports.football']);
+  const [selectedTopics, setSelectedTopics] = useState(new Set());
+  const [newTopic, setNewTopic] = useState('');
 
   const setPrefs = async () => {
     const list = topics.split(',').map(s=>s.trim()).filter(Boolean)
@@ -65,6 +68,29 @@ function Panel({ defaultUser }){
       body:JSON.stringify({text:annText})
     })
   }
+  const toggleTopic = (t) => {
+    setSelectedTopics(prev => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t); else next.add(t);
+      return next;
+    });
+  };
+
+  const addTopic = () => {
+    const t = (newTopic || '').trim();
+    if (!t) return;
+    const rk = t.startsWith('notify.') ? t : `notify.${t}`;
+    if (!availableTopics.includes(rk)) setAvailableTopics(a => [...a, rk]);
+    setNewTopic('');
+  };
+
+  const saveTogglePrefs = async () => {
+    const list = Array.from(selectedTopics);
+    await fetch(`${API_BASE}/api/prefs/${encodeURIComponent(userId)}`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ topics: list })
+    });
+  };
 
   return (
     <div style={{border:'1px solid #e5e7eb', borderRadius:12, padding:12}}>
@@ -73,7 +99,7 @@ function Panel({ defaultUser }){
         <input value={userId} onChange={e=>setUserId(e.target.value)} style={{flex:1}}/>
         {!connected ? <button onClick={connect}>Conectar</button> : <button onClick={disconnect}>Desconectar</button>}
       </div>
-      <small>Este panel simula una sesión de usuario final.</small>
+      <small>{subtitle} Conéctalo y prueba enviar/recibir mensajes.</small>
 
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:12}}>
         <div>
@@ -83,23 +109,57 @@ function Panel({ defaultUser }){
           <button onClick={sendDM}>Enviar</button>
         </div>
 
-        <div>
-          <h3 style={{margin:'8px 0'}}>Preferencias de temas</h3>
-          <label>Temas (CSV): <input value={topics} onChange={e=>setTopics(e.target.value)} style={{width:'100%'}} /></label>
-          <button onClick={setPrefs} style={{marginTop:8}}>Guardar</button>
-          <div style={{marginTop:8}}>
-            <label>Publicar a: <input value={topicKey} onChange={e=>setTopicKey(e.target.value)} /></label>
-            <label style={{marginLeft:8}}>Payload: <input value={topicPayload} onChange={e=>setTopicPayload(e.target.value)} /></label>
-            <button onClick={publishTopic} style={{marginLeft:8}}>Publicar</button>
-          </div>
-        </div>
+        {showPrefs && (
+          prefsMode === 'csv' ? (
+            <div>
+              <h3 style={{margin:'8px 0'}}>Preferencias de temas</h3>
+              <label>Temas (CSV): <input value={topics} onChange={e=>setTopics(e.target.value)} style={{width:'100%'}} /></label>
+              <button onClick={setPrefs} style={{marginTop:8}}>Guardar</button>
+              <div style={{marginTop:8}}>
+                <label>Publicar a: <input value={topicKey} onChange={e=>setTopicKey(e.target.value)} /></label>
+                <label style={{marginLeft:8}}>Payload: <input value={topicPayload} onChange={e=>setTopicPayload(e.target.value)} /></label>
+                <button onClick={publishTopic} style={{marginLeft:8}}>Publicar</button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h3 style={{margin:'8px 0'}}>Preferencias de temas</h3>
+              <div style={{display:'grid', gap:6}}>
+                {availableTopics.map(t => (
+                  <label key={t} style={{display:'flex', alignItems:'center', gap:8}}>
+                    <input
+                      type="checkbox"
+                      checked={selectedTopics.has(t)}
+                      onChange={() => toggleTopic(t)}
+                    />
+                    <code>{t}</code>
+                  </label>
+                ))}
+              </div>
+              <div style={{marginTop:8}}>
+                <input
+                  placeholder="nuevo tema (p.ej. notify.news.world o news.world)"
+                  value={newTopic}
+                  onChange={e=>setNewTopic(e.target.value)}
+                  style={{width:'100%'}}
+                />
+                <div style={{display:'flex', gap:8, marginTop:8}}>
+                  <button onClick={addTopic}>Añadir tema</button>
+                  <button onClick={saveTogglePrefs}>Guardar preferencias</button>
+                </div>
+              </div>
+            </div>
+          )
+        )}
       </div>
 
-      <div style={{marginTop:12}}>
-        <h3 style={{margin:'8px 0'}}>Anuncios</h3>
-        <input value={annText} onChange={e=>setAnnText(e.target.value)} style={{width:'100%'}} />
-        <button onClick={broadcast} style={{marginTop:8}}>Enviar anuncio</button>
-      </div>
+      {canAnnounce && (
+        <div style={{marginTop:12}}>
+          <h3 style={{margin:'8px 0'}}>Anuncios</h3>
+          <input value={annText} onChange={e=>setAnnText(e.target.value)} style={{width:'100%'}} />
+          <button onClick={broadcast} style={{marginTop:8}}>Enviar anuncio</button>
+        </div>
+      )}
 
       <div style={{marginTop:12}}>
         <h3 style={{margin:'8px 0'}}>Bandeja de entrada (recientes)</h3>
@@ -126,11 +186,11 @@ function Panel({ defaultUser }){
 export default function App(){
   return (
     <div className="min-h-screen p-6" style={{ fontFamily:'Inter, system-ui, Arial' }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700 }}>Notificaciones – Demo usuario final</h1>
+      <h1 style={{ fontSize: 28, fontWeight: 700 }}>Notificaciones – Demo usuario admin y Usuario final</h1>
       <p>Abre dos sesiones aquí mismo para visualizar cómo llegan DMs, suscripciones a temas y anuncios globales.</p>
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:16}}>
-        <Panel defaultUser="alice" />
-        <Panel defaultUser="bob" />
+        <Panel defaultUser="alice" showPrefs={true} prefsMode="csv" canAnnounce={true} subtitle="Este panel simula una sesión de usuario admin."/>
+        <Panel defaultUser="bob" showPrefs={true} prefsMode="toggles" canAnnounce={false} subtitle="Este panel simula una sesión de usuario final"/>
       </div>
     </div>
   )
