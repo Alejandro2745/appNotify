@@ -48,7 +48,7 @@ npm run dev  # http://localhost:5173
 ```
 ---
 
-## 🔌 Endpoints principales
+## Endpoints principales
 
 * **DM (Direct)**
 
