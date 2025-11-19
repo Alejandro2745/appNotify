@@ -35,7 +35,5 @@ build/
 ### Node / Frontend ###
 frontend/node_modules/
 frontend/dist/
-
-# Si usas Vite/React:
 dist/
 .frontend-cache/
