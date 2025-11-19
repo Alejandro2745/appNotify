@@ -5,24 +5,41 @@ services:
     image: rabbitmq:3-management
     container_name: appnotify-rabbitmq
     ports:
-      - "5672:5672"    
-      - "15672:15672"  
+      - "5672:5672"
+      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+
+  postgres:
+    image: postgres:16
+    container_name: appnotify-postgres
+    environment:
+      POSTGRES_DB: appnotify
+      POSTGRES_USER: appnotify
+      POSTGRES_PASSWORD: appnotify
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
 
   backend:
     build: ./backend
     container_name: appnotify-backend
     depends_on:
       - rabbitmq
+      - postgres
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: guest
       SPRING_RABBITMQ_PASSWORD: guest
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/appnotify
+      SPRING_DATASOURCE_USERNAME: appnotify
+      SPRING_DATASOURCE_PASSWORD: appnotify
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
     ports:
-      - "8080:8080"  
+      - "8080:8080"
   frontend:
     build: ./frontend
     container_name: appnotify-frontend
@@ -30,3 +47,6 @@ services:
       - backend
     ports:
       - "5173:80"
+
+volumes:
+  postgres-data:

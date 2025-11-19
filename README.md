@@ -31,7 +31,17 @@ Aplicación demo “orientada al usuario final” para mensajería DM (direct), 
 * **Node.js 18+/20+**: `node -v`
 * **RabbitMQ** (local o Docker)
   * UI: [http://localhost:15672](http://localhost:15672) (guest/guest)
+* **PostgreSQL 14+** (local o Docker) – almacena usuarios/preferencias
+  * Cadena por defecto: `jdbc:postgresql://localhost:5432/appnotify` (usuario/clave `appnotify`)
 
+### Docker Compose (RabbitMQ + Postgres + apps)
+
+```bash
+docker compose up -d rabbitmq postgres
+docker compose up --build backend frontend
+```
+
+El servicio `backend` ya exporta las variables `SPRING_DATASOURCE_*` y `SPRING_RABBITMQ_*` necesarias. PostgreSQL persiste los datos en el volumen `postgres-data`, por lo que al reiniciar el stack las preferencias se restauran automáticamente.
 ---
 
 ### Windows (PowerShell)

@@ -21,6 +21,7 @@ public class ControllersUpdate {
 
     @GetMapping(path = "/stream/{userId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(@PathVariable String userId) {
+        prefs.ensureUserRegistered(userId);
         prefs.ensureDmQueue(userId);
         SseEmitter em = sse.register(userId);
         hook.onStreamOpened(userId, em);

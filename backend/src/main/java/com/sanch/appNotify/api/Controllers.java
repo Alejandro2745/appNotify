@@ -31,7 +31,11 @@ public class Controllers {
 
     // DM enviado
     @PostMapping("/dm")
-    public void dm(@Valid @RequestBody DmRequest req) { bus.sendDm(req.from(), req.to(), req.text()); }
+    public void dm(@Valid @RequestBody DmRequest req) {
+        prefs.ensureUserRegistered(req.from());
+        prefs.ensureDmQueue(req.to());
+        bus.sendDm(req.from(), req.to(), req.text());
+    }
 
     // Cambiar preferencias de topics/temas
     @PostMapping("/prefs/{userId}")
@@ -52,6 +56,7 @@ public class Controllers {
     // Stream SSE para un usuario
     @GetMapping(path = "/stream/{userId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(@PathVariable String userId) {
+        prefs.ensureUserRegistered(userId);
         prefs.ensureDmQueue(userId); // make sure exists
         return sse.register(userId);
     }
