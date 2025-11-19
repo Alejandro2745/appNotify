@@ -1,18 +1,18 @@
-# 1) Build de la app con Vite
+# Build de la app con Vite
 FROM node:20 AS build
 WORKDIR /app
 
-# Copiamos solo lo necesario para instalar deps (aprovecha cache)
+# Copiar solo lo necesario para instalar dep
 COPY package*.json ./
 RUN npm install
 
-# Ahora copiamos el resto del código
+# Copiar el resto del código
 COPY . .
 
-# Build de producción (usa el script "build": "vite build")
+# Build de producción
 RUN npm run build
 
-# 2) Servir estático con Nginx
+# Servir estático con Nginx
 FROM nginx:alpine
 RUN rm -rf /usr/share/nginx/html/*
 

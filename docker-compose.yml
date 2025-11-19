@@ -5,8 +5,8 @@ services:
     image: rabbitmq:3-management
     container_name: appnotify-rabbitmq
     ports:
-      - "5672:5672"    # puerto AMQP
-      - "15672:15672"  # consola web http://localhost:15672 (guest/guest)
+      - "5672:5672"    
+      - "15672:15672"  
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -17,19 +17,16 @@ services:
     depends_on:
       - rabbitmq
     environment:
-      # Estas variables sobreescriben spring.rabbitmq.* dentro del container
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: guest
       SPRING_RABBITMQ_PASSWORD: guest
     ports:
-      - "8080:8080"    # backend accesible en http://localhost:8080
-    # Opcional: si tu app necesita zona horaria o algo más, lo pones aquí
-
+      - "8080:8080"  
   frontend:
     build: ./frontend
     container_name: appnotify-frontend
     depends_on:
       - backend
     ports:
-      - "5173:80"      # frontend en http://localhost:5173
+      - "5173:80"

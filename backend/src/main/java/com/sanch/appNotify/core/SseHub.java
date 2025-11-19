@@ -1,17 +1,18 @@
 package com.sanch.appNotify.core;
 
-import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Component
 public class SseHub {
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     public SseEmitter register(String userId) {
-        SseEmitter em = new SseEmitter(0L); // no timeout
+        SseEmitter em = new SseEmitter(0L); // sin timeout
         emitters.put(userId, em);
         em.onCompletion(() -> emitters.remove(userId));
         em.onTimeout(() -> emitters.remove(userId));
