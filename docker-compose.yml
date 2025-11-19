@@ -12,7 +12,7 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
 
   postgres:
-    image: postgres:16
+    image: postgres:16.0
     container_name: appnotify-postgres
     environment:
       POSTGRES_DB: appnotify
@@ -37,7 +37,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/appnotify
       SPRING_DATASOURCE_USERNAME: appnotify
       SPRING_DATASOURCE_PASSWORD: appnotify
-      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
     ports:
       - "8080:8080"
   frontend:
