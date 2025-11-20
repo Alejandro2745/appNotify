@@ -25,6 +25,22 @@ spring:
   flyway:
     enabled: true
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+  health:
+    db:
+      enabled: true
+    rabbit:
+      enabled: true
+    mongo:
+      enabled: true
+
 app:
   exchanges:
     dm: dm.exchange          # direct

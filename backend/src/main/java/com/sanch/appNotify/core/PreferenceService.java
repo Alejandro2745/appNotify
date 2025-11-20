@@ -1,5 +1,6 @@
 package com.sanch.appNotify.core;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -25,6 +26,8 @@ import com.sanch.appNotify.command.UserEntity;
 import com.sanch.appNotify.command.UserRepository;
 import com.sanch.appNotify.config.RabbitConfig;
 import static com.sanch.appNotify.config.RabbitConfig.DM_EX;
+import com.sanch.appNotify.shared.events.PreferenceUpdatedEvent;
+import com.sanch.appNotify.core.DomainEventPublisher;
 
 import lombok.RequiredArgsConstructor;
 
@@ -34,6 +37,7 @@ public class PreferenceService {
     private final AmqpAdmin amqpAdmin;
     private final UserRepository userRepository;
     private final TopicPreferenceRepository topicPreferenceRepository;
+    private final DomainEventPublisher eventPublisher;
     private final Map<String, Set<String>> userTopics = new ConcurrentHashMap<>();
 
     @Transactional
@@ -59,7 +63,13 @@ public class PreferenceService {
         ensureUserRegistered(userId);
         Set<String> desired = normalizeTopics(topics);
         persistPreferences(userId, desired);
-        return applyTopicBindings(userId, desired);
+        String queue = applyTopicBindings(userId, desired);
+        eventPublisher.publish("preference.updated", new PreferenceUpdatedEvent(
+                userId,
+                Set.copyOf(desired),
+                Instant.now()
+        ));
+        return queue;
     }
 
     @Transactional(readOnly = true)
