@@ -9,7 +9,7 @@ spring:
     password: guest
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/appnotify}
+      uri: mongodb://appnotify:appnotify@mongodb:27017/appnotify?authSource=admin
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/appnotify}
     username: ${SPRING_DATASOURCE_USERNAME:appnotify}
