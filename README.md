@@ -33,15 +33,18 @@ Aplicación demo “orientada al usuario final” para mensajería DM (direct), 
   * UI: [http://localhost:15672](http://localhost:15672) (guest/guest)
 * **PostgreSQL 14+** (local o Docker) – almacena usuarios/preferencias
   * Cadena por defecto: `jdbc:postgresql://localhost:5432/appnotify` (usuario/clave `appnotify`)
+* **MongoDB 6+** (local o Docker) – historial de mensajes
+  * Cadena por defecto: `mongodb://localhost:27017/appnotify`
+  * En Docker Compose: puerto `27017`, usuario/clave `appnotify`
 
 ### Docker Compose (RabbitMQ + Postgres + apps)
 
 ```bash
-docker compose up -d rabbitmq postgres
+docker compose up -d rabbitmq postgres mongodb
 docker compose up --build backend frontend
 ```
 
-El servicio `backend` ya exporta las variables `SPRING_DATASOURCE_*` y `SPRING_RABBITMQ_*` necesarias. PostgreSQL persiste los datos en el volumen `postgres-data`, por lo que al reiniciar el stack las preferencias se restauran automáticamente.
+El servicio `backend` ya exporta las variables `SPRING_DATASOURCE_*`, `SPRING_RABBITMQ_*` y `SPRING_DATA_MONGODB_URI` necesarias. PostgreSQL persiste los datos en el volumen `postgres-data`, MongoDB en `mongo-data`, por lo que al reiniciar el stack las preferencias y el historial de mensajes se restauran automáticamente.
 ---
 
 ### Windows (PowerShell)
