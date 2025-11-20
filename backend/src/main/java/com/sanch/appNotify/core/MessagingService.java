@@ -9,9 +9,12 @@ import org.springframework.stereotype.Service;
 import static com.sanch.appNotify.config.RabbitConfig.ANN_EX;
 import static com.sanch.appNotify.config.RabbitConfig.DM_EX;
 import static com.sanch.appNotify.config.RabbitConfig.NOTIFY_EX;
-import com.sanch.appNotify.query.MessageDocument;
-import com.sanch.appNotify.query.MessageHistoryRepository;
-import com.sanch.appNotify.query.MessageType;
+import com.sanch.appNotify.command.MessageRecordEntity;
+import com.sanch.appNotify.command.MessageRecordRepository;
+import com.sanch.appNotify.command.MessageRecordType;
+import com.sanch.appNotify.shared.events.AnnouncementBroadcastedEvent;
+import com.sanch.appNotify.shared.events.DirectMessageSentEvent;
+import com.sanch.appNotify.shared.events.TopicMessagePublishedEvent;
 
 import lombok.RequiredArgsConstructor;
 
@@ -20,15 +23,16 @@ import lombok.RequiredArgsConstructor;
 public class MessagingService {
 
     private final RabbitTemplate rabbit;
-    private final MessageHistoryRepository history;  
+    private final MessageRecordRepository messageRecordRepository;
+    private final DomainEventPublisher eventPublisher;
 
     // direct: DM para un usuario en cola user.<id>.queue
     public void sendDm(String from, String to, String text) {
         String routingKey = "user." + to;
         Instant now = Instant.now();
 
-        history.save(MessageDocument.builder()
-                .type(MessageType.DM)
+        MessageRecordEntity record = messageRecordRepository.save(MessageRecordEntity.builder()
+                .type(MessageRecordType.DM)
                 .fromUser(from)
                 .toUser(to)
                 .text(text)
@@ -43,6 +47,14 @@ public class MessagingService {
                 "ts", now.toEpochMilli()
         );
         rabbit.convertAndSend(DM_EX, routingKey, msg);
+
+        eventPublisher.publish("dm.sent", new DirectMessageSentEvent(
+                record.getId(),
+                from,
+                to,
+                text,
+                record.getCreatedAt()
+        ));
     }
 
     // topic: Público al que le interesa (e.g., notify.tech.ai)
@@ -50,8 +62,8 @@ public class MessagingService {
         String rk = topic.startsWith("notify.") ? topic : ("notify." + topic);
         Instant now = Instant.now();
 
-        history.save(MessageDocument.builder()
-                .type(MessageType.TOPIC)
+        MessageRecordEntity record = messageRecordRepository.save(MessageRecordEntity.builder()
+                .type(MessageRecordType.TOPIC)
                 .topic(rk)
                 .payload(payload)
                 .createdAt(now)
@@ -64,14 +76,21 @@ public class MessagingService {
                 "ts", now.toEpochMilli()
         );
         rabbit.convertAndSend(NOTIFY_EX, rk, msg);
+
+        eventPublisher.publish("topic.published", new TopicMessagePublishedEvent(
+                record.getId(),
+                rk,
+                payload,
+                record.getCreatedAt()
+        ));
     }
 
     // fanout: Anuncio broadcast a todos
     public void broadcast(String text) {
         Instant now = Instant.now();
 
-        history.save(MessageDocument.builder()
-                .type(MessageType.ANNOUNCEMENT)
+        MessageRecordEntity record = messageRecordRepository.save(MessageRecordEntity.builder()
+                .type(MessageRecordType.ANNOUNCEMENT)
                 .text(text)
                 .createdAt(now)
                 .build());
@@ -82,5 +101,11 @@ public class MessagingService {
                 "ts", now.toEpochMilli()
         );
         rabbit.convertAndSend(ANN_EX, "", msg);
+
+        eventPublisher.publish("announcement.broadcasted", new AnnouncementBroadcastedEvent(
+                record.getId(),
+                text,
+                record.getCreatedAt()
+        ));
     }
 }
